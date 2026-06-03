@@ -1,0 +1,12 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f7ff;
+}
+
+@media (max-width: 600px) {
+  .app {
+    min-height: 100vh;
+  }
+}
