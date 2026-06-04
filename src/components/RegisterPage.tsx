@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react'
-import api from '../api'
+import { register } from '../api'
 import '../styles/RegisterPage.css'
 
 type RegisterPageProps = {
@@ -52,21 +52,20 @@ const RegisterPage = ({ onBack }: RegisterPageProps) => {
     setFeedback('Creating your account...')
 
     try {
-      await api.post('/register', {
-        name,
-        email,
-        password,
-      })
+      await register({ name, email, password })
 
       setFeedback('Registration successful. Returning to login page...')
       window.setTimeout(() => {
         onBack()
       }, 700)
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to register. Please try again.'
+      let message = 'Unable to register. Please try again.'
+      if (error && typeof error === 'object' && 'response' in error) {
+        // @ts-ignore
+        message = error.response?.data?.message || message
+      } else if (error instanceof Error) {
+        message = error.message
+      }
       setFeedback(`Registration failed: ${message}`)
     } finally {
       setLoading(false)

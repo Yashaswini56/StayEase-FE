@@ -1,10 +1,10 @@
 import { FormEvent, useState } from 'react'
-import api from '../api'
+import { login } from '../api'
 import '../styles/LoginPage.css'
 
 type UserSession = {
   email: string
-  role: 'User' | 'Admin' | 'Manager'
+  role: string
   token: string
 }
 
@@ -21,7 +21,7 @@ type LoginPageProps = {
 type LoginResponse = {
   token: string
   email: string
-  role: 'User' | 'Admin' | 'Manager'
+  role: string
 }
 
 const LoginPage = ({ onLogin, onCreateAccount }: LoginPageProps) => {
@@ -65,15 +65,11 @@ const LoginPage = ({ onLogin, onCreateAccount }: LoginPageProps) => {
     setFeedback('Signing in...')
 
     try {
-      const response = await api.post<LoginResponse>('/login', {
-        email,
-        password,
-      })
-
-      const data = response.data
+      const response = await login({ email, password })
+      const data = response.data as LoginResponse
       const session = {
         email: data.email || email,
-        role: data.role || 'User',
+        role: data.role || 'GUEST',
         token: data.token,
       }
 
@@ -84,10 +80,13 @@ const LoginPage = ({ onLogin, onCreateAccount }: LoginPageProps) => {
       setFeedback('Login successful. Redirecting to dashboard...')
       onLogin(session)
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to sign in. Please try again.'
+      let message = 'Unable to sign in. Please try again.'
+      if (error && typeof error === 'object' && 'response' in error) {
+        // @ts-ignore
+        message = error.response?.data?.message || message
+      } else if (error instanceof Error) {
+        message = error.message
+      }
       setFeedback(`Login failed: ${message}`)
     } finally {
       setLoading(false)

@@ -13,8 +13,9 @@ type Hotel = {
 
 type DashboardProps = {
   email: string
-  role: 'User' | 'Admin' | 'Manager'
+  role: string
   token: string
+  cities?: string[]
 }
 
 const hotelData: Hotel[] = [
@@ -25,7 +26,7 @@ const hotelData: Hotel[] = [
   { id: 'h5', name: 'Garden View Hotel', city: 'Austin', type: 'Deluxe', price: 175, rooms: 11, rating: 4.4 },
 ]
 
-const Dashboard = ({ email, role, token }: DashboardProps) => {
+const Dashboard = ({ email, role, token, cities = [] }: DashboardProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [roomType, setRoomType] = useState('All')
   const [bookingMessage, setBookingMessage] = useState('')
@@ -57,6 +58,9 @@ const Dashboard = ({ email, role, token }: DashboardProps) => {
           <p className="dashboard-subtitle">
             You are signed in as <strong>{role}</strong>. Search and book rooms from the hotels below.
           </p>
+          {cities.length > 0 && (
+            <p className="dashboard-cities">Available cities: {cities.join(', ')}</p>
+          )}
           <p className="dashboard-status">{authStatus}</p>
         </div>
       </section>
