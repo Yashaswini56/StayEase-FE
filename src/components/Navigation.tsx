@@ -1,4 +1,4 @@
-import React from 'react'
+
 import '../styles/Navigation.css'
 
 type NavigationProps = {
@@ -17,12 +17,12 @@ function Navigation({ userEmail, onLogout }: NavigationProps) {
             <li>
               <a href="#">Home</a>
             </li>
-            <li>
+            {/* <li>
               <a href="#">Features</a>
             </li>
             <li>
               <a href="#">Support</a>
-            </li>
+            </li> */}
           </ul>
         </nav>
 

@@ -1,7 +1,12 @@
-import React, { FormEvent, useState } from 'react'
+import { FormEvent, useState } from 'react'
+import api from '../api'
 import '../styles/LoginPage.css'
 
-type Role = 'User' | 'Admin' | 'Manager'
+type UserSession = {
+  email: string
+  role: 'User' | 'Admin' | 'Manager'
+  token: string
+}
 
 type FormErrors = {
   email?: string
@@ -9,15 +14,22 @@ type FormErrors = {
 }
 
 type LoginPageProps = {
-  onLogin: (session: { email: string; role: Role }) => void
+  onLogin: (session: UserSession) => void
+  onCreateAccount: () => void
 }
 
-const LoginPage = ({ onLogin }: LoginPageProps) => {
+type LoginResponse = {
+  token: string
+  email: string
+  role: 'User' | 'Admin' | 'Manager'
+}
+
+const LoginPage = ({ onLogin, onCreateAccount }: LoginPageProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<Role>('User')
   const [errors, setErrors] = useState<FormErrors>({})
   const [feedback, setFeedback] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -40,7 +52,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     return Object.keys(nextErrors).length === 0
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!validate()) {
@@ -49,8 +61,37 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     }
 
     setErrors({})
-    setFeedback(`Welcome back, ${role}! Redirecting to your dashboard...`)
-    onLogin({ email, role })
+    setLoading(true)
+    setFeedback('Signing in...')
+
+    try {
+      const response = await api.post<LoginResponse>('/login', {
+        email,
+        password,
+      })
+
+      const data = response.data
+      const session = {
+        email: data.email || email,
+        role: data.role || 'User',
+        token: data.token,
+      }
+
+      if (!session.token) {
+        throw new Error('Invalid login response: missing token')
+      }
+
+      setFeedback('Login successful. Redirecting to dashboard...')
+      onLogin(session)
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to sign in. Please try again.'
+      setFeedback(`Login failed: ${message}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -59,7 +100,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
         <div className="logo-section">
           <div className="logo-icon">🏨</div>
           <h1>Welcome to StayEase</h1>
-          <p>Secure hotel management access with role selection and form validation.</p>
+          <p>Secure hotel management access with login and role-aware dashboard.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit} noValidate>
@@ -72,6 +113,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
+              disabled={loading}
             />
             {errors.email && <p className="error-message">{errors.email}</p>}
           </div>
@@ -85,33 +127,30 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
+              disabled={loading}
             />
             {errors.password && <p className="error-message">{errors.password}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="role">Select Role</label>
-            <select
-              id="role"
-              className="form-control"
-              value={role}
-              onChange={(event) => setRole(event.target.value as Role)}
-            >
-              <option value="User">User</option>
-              <option value="Admin">Admin</option>
-              <option value="Manager">Manager</option>
-            </select>
-          </div>
-
-          <button className="login-button" type="submit">
-            Sign In
+          <button className="login-button" type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         {feedback && <p className="success-message">{feedback}</p>}
 
         <p className="register-link">
-          New to StayEase? <a href="#">Create an account</a>.
+          New to StayEase?{' '}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault()
+              onCreateAccount()
+            }}
+          >
+            Create an account
+          </a>
+          .
         </p>
       </div>
     </section>
