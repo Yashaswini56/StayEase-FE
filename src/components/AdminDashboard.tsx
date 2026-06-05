@@ -30,7 +30,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
-import { createHotel, updateHotel, deleteHotel, registerAdmin, listAllHotels, Hotel, HotelReq } from '../api'
+import { createHotel, updateHotel, deleteHotel, registerAdmin, listAllHotels, getCities, Hotel, HotelReq } from '../api'
 
 type AdminDashboardProps = {
   email: string
@@ -70,6 +70,9 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
   // Filters for All Hotels
   const [filterName, setFilterName] = useState('')
   const [filterCity, setFilterCity] = useState('')
+
+  // Cities for the hotel form dropdown (fetched from /api/cities)
+  const [cities, setCities] = useState<string[]>([])
 
   // Hotel Dialog States
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false)
@@ -243,6 +246,15 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
   useEffect(() => {
     // Load all hotels when component mounts
     loadAllHotels()
+    // Load cities for the hotel form dropdown
+    ;(async () => {
+      try {
+        const res = await getCities(token)
+        setCities(Array.isArray(res.data) ? res.data : [])
+      } catch (err) {
+        console.error('Error loading cities:', err)
+      }
+    })()
   }, [])
 
   useEffect(() => {
@@ -407,6 +419,20 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
                 onClick={() => {
                   setFilterName('')
                   setFilterCity('')
+                  // Reload all hotels with no filters applied
+                  ;(async () => {
+                    setLoading(true)
+                    setError('')
+                    try {
+                      const response = await listAllHotels(undefined, undefined)
+                      setAllHotels(response.data || [])
+                    } catch (err: any) {
+                      setError(err.response?.data?.message || 'Failed to load hotels')
+                      console.error('Error loading hotels:', err)
+                    } finally {
+                      setLoading(false)
+                    }
+                  })()
                 }}
                 sx={{ fontWeight: 'bold' }}
               >
@@ -514,14 +540,29 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
             margin="normal"
             required
           />
-          <TextField
-            fullWidth
-            label="City"
-            value={hotelForm.city}
-            onChange={(e) => setHotelForm({ ...hotelForm, city: e.target.value })}
-            margin="normal"
-            required
-          />
+          <FormControl fullWidth margin="normal" required>
+            <InputLabel>City</InputLabel>
+            <Select
+              value={hotelForm.city}
+              onChange={(e) => setHotelForm({ ...hotelForm, city: e.target.value })}
+              label="City"
+            >
+              {cities.length === 0 && (
+                <MenuItem value="" disabled>
+                  No cities available
+                </MenuItem>
+              )}
+              {/* If editing an existing hotel whose city isn't in the fetched list, still show it */}
+              {hotelForm.city && !cities.includes(hotelForm.city) && (
+                <MenuItem value={hotelForm.city}>{hotelForm.city}</MenuItem>
+              )}
+              {cities.map((c) => (
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
             fullWidth
             type="number"

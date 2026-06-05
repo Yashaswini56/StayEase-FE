@@ -108,6 +108,30 @@ export async function listAllHotels(name?: string, city?: string) {
   })
 }
 
+// MANAGER - Lookup operations
+export type ManagerHotel = {
+  hotelId: number
+  hotelName: string
+  city: string
+}
+
+export async function getManagerIdByEmail(email: string, token: string) {
+  return api.get<number | { id: number; userId?: number }>(`/api/users/manager-id`, {
+    params: { email },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}
+
+export async function getHotelsByManager(managerId: number) {
+  return api.get<ManagerHotel[]>(`/api/hotels/by-manager/${managerId}`)
+}
+
+export async function getAllRoomsByHotel(hotelId: number) {
+  return api.get<Room[]>(`/api/hotels/${hotelId}/rooms/all`)
+}
+
 // MANAGER - Room Operations
 export type RoomReq = {
   roomNumber: string
