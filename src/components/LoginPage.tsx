@@ -1,6 +1,16 @@
 import { FormEvent, useState } from 'react'
 import { login } from '../api'
-import '../styles/LoginPage.css'
+import {
+  Box,
+  TextField,
+  Button,
+  Card,
+  Typography,
+  Link,
+  Alert,
+  CircularProgress,
+  Stack,
+} from '@mui/material'
 
 type UserSession = {
   email: string
@@ -94,65 +104,130 @@ const LoginPage = ({ onLogin, onCreateAccount }: LoginPageProps) => {
   }
 
   return (
-    <section className="login-container">
-      <div className="login-card">
-        <div className="logo-section">
-          <div className="logo-icon">🏨</div>
-          <h1>Welcome to StayEase</h1>
-          <p>Secure hotel management access with login and role-aware dashboard.</p>
-        </div>
+    <Box
+      sx={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 'calc(100vh - 70px)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: 2,
+      }}
+    >
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 380,
+          padding: 3,
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+          animation: 'slideUp 0.5s ease',
+          '@keyframes slideUp': {
+            from: { opacity: 0, transform: 'translateY(20px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+          },
+        }}
+      >
+        <Box sx={{ textAlign: 'center', marginBottom: 3 }}>
+          <Typography sx={{ fontSize: '2.5rem', marginBottom: 0.5 }}>
+            🏨
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{ color: '#667eea', marginBottom: 0.5, fontWeight: 700 }}
+          >
+            Welcome to StayEase
+          </Typography>
+          <Typography sx={{ color: '#666', fontSize: '0.95rem' }}>
+            Secure hotel management access with login and role-aware dashboard.
+          </Typography>
+        </Box>
 
-        <form className="login-form" onSubmit={handleSubmit} noValidate>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
+        <form onSubmit={handleSubmit} noValidate>
+          <Stack spacing={2}>
+            <TextField
+              fullWidth
               id="email"
               type="email"
-              className={`form-control ${errors.email ? 'error' : ''}`}
+              label="Email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               disabled={loading}
+              error={!!errors.email}
+              helperText={errors.email}
+              variant="outlined"
+              size="medium"
             />
-            {errors.email && <p className="error-message">{errors.email}</p>}
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
+            <TextField
+              fullWidth
               id="password"
               type="password"
-              className={`form-control ${errors.password ? 'error' : ''}`}
+              label="Password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               disabled={loading}
+              error={!!errors.password}
+              helperText={errors.password}
+              variant="outlined"
+              size="medium"
             />
-            {errors.password && <p className="error-message">{errors.password}</p>}
-          </div>
 
-          <button className="login-button" type="submit" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+            <Button
+              fullWidth
+              type="submit"
+              disabled={loading}
+              sx={{
+                padding: '0.85rem 1.5rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                marginTop: 1,
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+                },
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={24} sx={{ color: 'white' }} />
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </Stack>
         </form>
 
-        {feedback && <p className="success-message">{feedback}</p>}
+        {feedback && (
+          <Alert
+            severity={feedback.includes('failed') ? 'error' : 'success'}
+            sx={{ marginTop: 2 }}
+          >
+            {feedback}
+          </Alert>
+        )}
 
-        <p className="register-link">
+        <Typography sx={{ textAlign: 'center', fontSize: '0.85rem', color: '#666', marginTop: 2 }}>
           New to StayEase?{' '}
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault()
-              onCreateAccount()
+          <Link
+            onClick={onCreateAccount}
+            sx={{
+              color: '#667eea',
+              fontWeight: 600,
+              cursor: 'pointer',
+              '&:hover': { color: '#764ba2' },
             }}
           >
             Create an account
-          </a>
-          .
-        </p>
-      </div>
-    </section>
+          </Link>
+        </Typography>
+      </Card>
+    </Box>
   )
 }
 

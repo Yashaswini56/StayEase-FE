@@ -1,5 +1,5 @@
-
-import '../styles/Navigation.css'
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material'
+import LogoutIcon from '@mui/icons-material/Logout'
 
 type NavigationProps = {
   userEmail?: string
@@ -8,36 +8,41 @@ type NavigationProps = {
 
 function Navigation({ userEmail, onLogout }: NavigationProps) {
   return (
-    <header className="navbar">
-      <div className="navbar-container">
-        <div className="navbar-brand">StayEase</div>
+    <AppBar position="static" sx={{
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+    }}>
+      <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.5rem' }}>
+          StayEase
+        </Typography>
 
-        <nav aria-label="Main navigation">
-          <ul className="navbar-menu">
-            <li>
-              <a href="#">Home</a>
-            </li>
-            {/* <li>
-              <a href="#">Features</a>
-            </li>
-            <li>
-              <a href="#">Support</a>
-            </li> */}
-          </ul>
-        </nav>
-
-        <div className="navbar-actions">
-          {userEmail ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {userEmail && (
             <>
-              <span className="navbar-user">{userEmail}</span>
-              <button className="logout-button" onClick={onLogout} type="button">
+              <Typography sx={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.95rem' }}>
+                {userEmail}
+              </Typography>
+              <Button
+                color="inherit"
+                onClick={onLogout}
+                endIcon={<LogoutIcon />}
+                sx={{
+                  textTransform: 'capitalize',
+                  background: 'rgba(255, 255, 255, 0.14)',
+                  px: 2,
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.25)',
+                  },
+                }}
+              >
                 Logout
-              </button>
+              </Button>
             </>
-          ) : null}
-        </div>
-      </div>
-    </header>
+          )}
+        </Box>
+      </Toolbar>
+    </AppBar>
   )
 }
 

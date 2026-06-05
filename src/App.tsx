@@ -1,10 +1,31 @@
 import { useState } from "react";
-import "./App.css";
+import { Box, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import Navigation from "./components/Navigation";
 import LoginPage from "./components/LoginPage";
-import Dashboard from "./components/Dashboard";
+import AdminDashboard from "./components/AdminDashboard";
+import ManagerDashboard from "./components/ManagerDashboard";
+import GuestDashboard from "./components/GuestDashboard";
 import RegisterPage from "./components/RegisterPage";
 import { getCities, logout as apiLogout } from "./api";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#667eea',
+    },
+    secondary: {
+      main: '#764ba2',
+    },
+    background: {
+      default: '#eef2ff',
+    },
+  },
+  typography: {
+    fontFamily: `-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif`,
+  },
+});
 
 type UserSession = {
   email: string;
@@ -43,23 +64,29 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <Navigation userEmail={user?.email} onLogout={handleLogout} />
-      <main className="app-content">
-        {user ? (
-          <Dashboard
-            email={user.email}
-            role={user.role}
-            token={user.token}
-            cities={cities}
-          />
-        ) : showRegister ? (
-          <RegisterPage onBack={() => setShowRegister(false)} />
-        ) : (
-          <LoginPage onLogin={handleLogin} onCreateAccount={() => setShowRegister(true)} />
-        )}
-      </main>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Navigation userEmail={user?.email} onLogout={handleLogout} />
+        <Box component="main" sx={{ flex: 1 }}>
+          {user ? (
+            <>
+              {user.role === 'ADMIN' ? (
+                <AdminDashboard email={user.email} token={user.token} />
+              ) : user.role === 'MANAGER' ? (
+                <ManagerDashboard email={user.email} token={user.token} />
+              ) : (
+                <GuestDashboard email={user.email} token={user.token} cities={cities} />
+              )}
+            </>
+          ) : showRegister ? (
+            <RegisterPage onBack={() => setShowRegister(false)} />
+          ) : (
+            <LoginPage onLogin={handleLogin} onCreateAccount={() => setShowRegister(true)} />
+          )}
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 }
 
