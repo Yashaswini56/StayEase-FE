@@ -30,7 +30,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import PersonAddIcon from '@mui/icons-material/PersonAdd'
-import { createHotel, updateHotel, deleteHotel, registerAdmin, listAllHotels, getCities, Hotel, HotelReq } from '../api'
+import { createHotel, updateHotel, deleteHotel, registerAdmin, listAllHotels, getCities, getAllManagers, Hotel, HotelReq, Manager } from '../api'
 
 type AdminDashboardProps = {
   email: string
@@ -43,25 +43,18 @@ type TabPanelProps = {
   value: number
 }
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props
-
+function TabPanel({ children, value, index }: TabPanelProps) {
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`admin-tabpanel-${index}`}
-      aria-labelledby={`admin-tab-${index}`}
-      {...other}
-    >
+    <div role="tabpanel" hidden={value !== index}>
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   )
 }
 
+const GRADIENT = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+
 const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
   const [tabValue, setTabValue] = useState(0)
-  const [hotels, setHotels] = useState<Hotel[]>([])
   const [allHotels, setAllHotels] = useState<Hotel[]>([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -71,8 +64,24 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
   const [filterName, setFilterName] = useState('')
   const [filterCity, setFilterCity] = useState('')
 
-  // Cities for the hotel form dropdown (fetched from /api/cities)
+  // Cities (fetched from /api/cities)
   const [cities, setCities] = useState<string[]>([])
+
+  // Managers (fetched from /api/users/managers)
+  const [managers, setManagers] = useState<Manager[]>([])
+  const [managersLoading, setManagersLoading] = useState(false)
+
+  const loadManagers = async () => {
+    setManagersLoading(true)
+    try {
+      const res = await getAllManagers(token)
+      setManagers(Array.isArray(res.data) ? res.data : [])
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load managers')
+    } finally {
+      setManagersLoading(false)
+    }
+  }
 
   // Hotel Dialog States
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false)
@@ -95,30 +104,25 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
     role: 'MANAGER' as 'MANAGER' | 'ADMIN',
   })
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue)
-    if (newValue === 0) {
-      loadAllHotels()
-    }
-  }
-
-  // Load all hotels
-  const loadAllHotels = async () => {
+  const loadAllHotels = async (name?: string, city?: string) => {
     setLoading(true)
     setError('')
-
     try {
-      const response = await listAllHotels(filterName || undefined, filterCity || undefined)
+      const response = await listAllHotels(name || undefined, city || undefined)
       setAllHotels(response.data || [])
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load hotels')
-      console.error('Error loading hotels:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Hotel operations
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue)
+    if (newValue === 0) loadAllHotels(filterName, filterCity)
+    if (newValue === 1) loadManagers()
+  }
+
   const handleOpenHotelDialog = (hotel?: Hotel) => {
     if (hotel) {
       setEditingHotel(hotel)
@@ -132,14 +136,7 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
       })
     } else {
       setEditingHotel(null)
-      setHotelForm({
-        name: '',
-        city: '',
-        starRating: 3,
-        description: '',
-        coverImageUrl: '',
-        managerId: 0,
-      })
+      setHotelForm({ name: '', city: '', starRating: 3, description: '', coverImageUrl: '', managerId: 0 })
     }
     setHotelDialogOpen(true)
   }
@@ -162,25 +159,18 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
     try {
       if (editingHotel) {
         const response = await updateHotel(editingHotel.id, hotelForm, token)
-        // Ensure response includes all form data, including managerId
         const hotelData = { ...hotelForm, ...response.data }
-        const updatedHotels = hotels.map((h) => (h.id === editingHotel.id ? hotelData : h))
-        setHotels(updatedHotels)
-        const updatedAllHotels = allHotels.map((h) => (h.id === editingHotel.id ? hotelData : h))
-        setAllHotels(updatedAllHotels)
+        setAllHotels(allHotels.map((h) => (h.id === editingHotel.id ? hotelData : h)))
         setMessage('Hotel updated successfully!')
       } else {
         const response = await createHotel(hotelForm, token)
-        // Ensure response includes all form data, including managerId
         const hotelData = { ...hotelForm, ...response.data }
-        setHotels([...hotels, hotelData])
         setAllHotels([...allHotels, hotelData])
         setMessage('Hotel created successfully!')
       }
       handleCloseHotelDialog()
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save hotel')
-      console.error('Error saving hotel:', err)
     } finally {
       setLoading(false)
     }
@@ -195,30 +185,18 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
 
     try {
       await deleteHotel(hotelId, token)
-      setHotels(hotels.filter((h) => h.id !== hotelId))
       setAllHotels(allHotels.filter((h) => h.id !== hotelId))
       setMessage('Hotel deleted successfully!')
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to delete hotel')
-      console.error('Error deleting hotel:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // User Registration
   const handleOpenRegisterDialog = () => {
-    setRegisterForm({
-      name: '',
-      email: '',
-      password: '',
-      role: 'MANAGER',
-    })
+    setRegisterForm({ name: '', email: '', password: '', role: 'MANAGER' })
     setRegisterDialogOpen(true)
-  }
-
-  const handleCloseRegisterDialog = () => {
-    setRegisterDialogOpen(false)
   }
 
   const handleRegisterUser = async () => {
@@ -232,21 +210,24 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
     setMessage('')
 
     try {
-      await registerAdmin(registerForm, token)
-      setMessage(`${registerForm.role} registered successfully!`)
-      handleCloseRegisterDialog()
+      const response = await registerAdmin(registerForm, token)
+      const responseData =
+        typeof response.data === 'string'
+          ? response.data
+          : `${registerForm.email} (${registerForm.role})`
+      setMessage(`User registered successfully - ${responseData}`)
+      setRegisterDialogOpen(false)
+      // Refresh managers list if a manager was added
+      if (registerForm.role === 'MANAGER') loadManagers()
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to register user')
-      console.error('Error registering user:', err)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    // Load all hotels when component mounts
     loadAllHotels()
-    // Load cities for the hotel form dropdown
     ;(async () => {
       try {
         const res = await getCities(token)
@@ -271,7 +252,7 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
         <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold' }}>
           Admin Dashboard
         </Typography>
-        <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+        <Typography variant="body1" color="text.secondary">
           Logged in as: <strong>{email}</strong>
         </Typography>
       </Box>
@@ -288,20 +269,9 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
       )}
 
       <Paper sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="admin tabs"
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontSize: '1rem',
-              fontWeight: 500,
-            },
-          }}
-        >
-          <Tab label="Hotels Management" id="admin-tab-0" aria-controls="admin-tabpanel-0" />
-          <Tab label="Register Users" id="admin-tab-1" aria-controls="admin-tabpanel-1" />
+        <Tabs value={tabValue} onChange={handleTabChange}>
+          <Tab label="Hotels Management" />
+          <Tab label="Register Users" />
         </Tabs>
       </Paper>
 
@@ -312,14 +282,57 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenHotelDialog()}
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              mb: 3,
-            }}
+            sx={{ background: GRADIENT }}
           >
             Add New Hotel
           </Button>
         </Box>
+
+        <Card sx={{ p: 3, mb: 3 }}>
+          <Typography variant="body2" sx={{ mb: 2, fontWeight: 500 }}>
+            Filter by Hotel Name or City:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <TextField
+              label="Hotel Name"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              size="small"
+              sx={{ minWidth: 200 }}
+            />
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>City</InputLabel>
+              <Select value={filterCity} onChange={(e) => setFilterCity(e.target.value)} label="City">
+                <MenuItem value="">
+                  <em>All Cities</em>
+                </MenuItem>
+                {cities.map((c) => (
+                  <MenuItem key={c} value={c}>
+                    {c}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              onClick={() => loadAllHotels(filterName, filterCity)}
+              disabled={loading}
+              sx={{ background: GRADIENT }}
+            >
+              {loading ? 'Filtering...' : 'Filter'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setFilterName('')
+                setFilterCity('')
+                loadAllHotels()
+              }}
+            >
+              Clear Filters
+            </Button>
+          </Box>
+        </Card>
 
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -327,131 +340,12 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
           </Box>
         )}
 
-        {!loading && hotels.length === 0 ? (
+        {!loading && allHotels.length === 0 ? (
           <Card sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="textSecondary">No hotels created yet. Create one to get started.</Typography>
+            <Typography color="textSecondary">No hotels found.</Typography>
           </Card>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Hotel Name</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>City</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                    Stars
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Manager ID</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {hotels.map((hotel) => (
-                  <TableRow key={hotel.id} hover>
-                    <TableCell>{hotel.name}</TableCell>
-                    <TableCell>{hotel.city}</TableCell>
-                    <TableCell align="center">{hotel.starRating}</TableCell>
-                    <TableCell>{hotel.managerId}</TableCell>
-                    <TableCell align="right">
-                      <Button
-                        size="small"
-                        startIcon={<EditIcon />}
-                        onClick={() => handleOpenHotelDialog(hotel)}
-                        sx={{ mr: 1 }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={() => handleDeleteHotel(hotel.id)}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-
-        {/* All Hotels Section */}
-        <Box sx={{ mt: 4, pt: 4, borderTop: '2px solid #e0e0e0' }}>
-          <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-            🏨 All Hotels
-          </Typography>
-          <Card sx={{ p: 3, background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)', mb: 3 }}>
-            <Typography variant="body2" sx={{ mb: 2, fontWeight: '500' }}>
-              Filter by Hotel Name or City:
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <TextField
-                label="Hotel Name"
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                size="small"
-                sx={{ minWidth: 200 }}
-              />
-              <TextField
-                label="City"
-                value={filterCity}
-                onChange={(e) => setFilterCity(e.target.value)}
-                size="small"
-                sx={{ minWidth: 200 }}
-              />
-              <Button
-                variant="contained"
-                onClick={loadAllHotels}
-                disabled={loading}
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  fontWeight: 'bold',
-                }}
-              >
-                {loading ? 'Filtering...' : 'Filter'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setFilterName('')
-                  setFilterCity('')
-                  // Reload all hotels with no filters applied
-                  ;(async () => {
-                    setLoading(true)
-                    setError('')
-                    try {
-                      const response = await listAllHotels(undefined, undefined)
-                      setAllHotels(response.data || [])
-                    } catch (err: any) {
-                      setError(err.response?.data?.message || 'Failed to load hotels')
-                      console.error('Error loading hotels:', err)
-                    } finally {
-                      setLoading(false)
-                    }
-                  })()
-                }}
-                sx={{ fontWeight: 'bold' }}
-              >
-                Clear Filters
-              </Button>
-            </Box>
-          </Card>
-
-          {loading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          )}
-
-          {!loading && allHotels.length === 0 ? (
-            <Card sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="textSecondary">No hotels found. Try adjusting your filters.</Typography>
-            </Card>
-          ) : (
+          !loading && (
             <TableContainer component={Paper}>
               <Table>
                 <TableHead sx={{ backgroundColor: '#667eea' }}>
@@ -469,15 +363,13 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
                 </TableHead>
                 <TableBody>
                   {allHotels.map((hotel) => (
-                    <TableRow key={hotel.id} hover sx={{ '&:hover': { backgroundColor: '#f5f5f5' } }}>
-                      <TableCell sx={{ fontWeight: '600' }}>{hotel.name}</TableCell>
+                    <TableRow key={hotel.id} hover>
+                      <TableCell>{hotel.name}</TableCell>
                       <TableCell>{hotel.city}</TableCell>
                       <TableCell align="center">
-                        <Typography sx={{ fontWeight: 'bold', color: '#ffc107' }}>
-                          {hotel.stars || Math.max(0, parseInt(String(hotel.starRating)) || 0)}
-                        </Typography>
+                        {hotel.stars || Math.max(0, parseInt(String(hotel.starRating)) || 0)}
                       </TableCell>
-                      <TableCell sx={{ fontWeight: '500' }}>{hotel.managerId}</TableCell>
+                      <TableCell>{hotel.managerId}</TableCell>
                       <TableCell align="right">
                         <Button
                           size="small"
@@ -501,31 +393,56 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
                 </TableBody>
               </Table>
             </TableContainer>
-          )}
-        </Box>
+          )
+        )}
       </TabPanel>
 
       {/* User Registration Tab */}
       <TabPanel value={tabValue} index={1}>
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            All Managers
+          </Typography>
           <Button
             variant="contained"
             startIcon={<PersonAddIcon />}
             onClick={handleOpenRegisterDialog}
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              mb: 3,
-            }}
+            sx={{ background: GRADIENT }}
           >
             Register New User
           </Button>
         </Box>
 
-        <Card sx={{ p: 4 }}>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Use this form to register new Manager or Admin users. They will receive login credentials via email.
-          </Typography>
-        </Card>
+        {managersLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : managers.length === 0 ? (
+          <Card sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="textSecondary">No managers found.</Typography>
+          </Card>
+        ) : (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead sx={{ backgroundColor: '#667eea' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Manager ID</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Email</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {managers.map((m) => (
+                  <TableRow key={m.managerId} hover>
+                    <TableCell>{m.managerId}</TableCell>
+                    <TableCell>{m.managerName}</TableCell>
+                    <TableCell>{m.email}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </TabPanel>
 
       {/* Hotel Dialog */}
@@ -552,7 +469,6 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
                   No cities available
                 </MenuItem>
               )}
-              {/* If editing an existing hotel whose city isn't in the fetched list, still show it */}
               {hotelForm.city && !cities.includes(hotelForm.city) && (
                 <MenuItem value={hotelForm.city}>{hotelForm.city}</MenuItem>
               )}
@@ -608,7 +524,7 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
       </Dialog>
 
       {/* Register User Dialog */}
-      <Dialog open={registerDialogOpen} onClose={handleCloseRegisterDialog} maxWidth="sm" fullWidth>
+      <Dialog open={registerDialogOpen} onClose={() => setRegisterDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Register New User</DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <TextField
@@ -650,7 +566,7 @@ const AdminDashboard = ({ email, token }: AdminDashboardProps) => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseRegisterDialog}>Cancel</Button>
+          <Button onClick={() => setRegisterDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleRegisterUser} variant="contained" disabled={loading}>
             {loading ? 'Registering...' : 'Register'}
           </Button>

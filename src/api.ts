@@ -9,6 +9,24 @@ const api = axios.create({
   },
 })
 
+// If the persisted token is rejected (e.g. expired after a reload),
+// clear local session so the app falls back to the login page on next render.
+api.interceptors.response.use(
+  (resp) => resp,
+  (error) => {
+    const status = error?.response?.status
+    if (status === 401 || status === 403) {
+      try {
+        localStorage.removeItem('stayease.user')
+        localStorage.removeItem('stayease.cities')
+      } catch {
+        /* ignore */
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 type LoginReq = { email: string; password: string }
 type RegisterReq = { name: string; email: string; password: string }
 type RegisterAdminReq = { name: string; email: string; password: string; role: 'MANAGER' | 'ADMIN' }
@@ -126,6 +144,21 @@ export async function getManagerIdByEmail(email: string, token: string) {
 
 export async function getHotelsByManager(managerId: number) {
   return api.get<ManagerHotel[]>(`/api/hotels/by-manager/${managerId}`)
+}
+
+// ADMIN - Get all managers
+export type Manager = {
+  managerId: number
+  managerName: string
+  email: string
+}
+
+export async function getAllManagers(token: string) {
+  return api.get<Manager[]>('/api/users/managers', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
 }
 
 export async function getAllRoomsByHotel(hotelId: number) {
